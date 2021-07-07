@@ -8,7 +8,7 @@ import 'package:latlong2/latlong.dart';
 import 'fast_markers_layer_option.dart';
 
 extension on CustomPoint {
-  Offset toOffset() => Offset(this.x, this.y);
+  Offset toOffset() => Offset(this.x as double, this.y as double);
 }
 
 class FastMarker {
@@ -17,7 +17,7 @@ class FastMarker {
   final double height;
   final Anchor anchor;
   final Function(Canvas canvas, Offset offset) onDraw;
-  final Function() onTap;
+  final VoidCallback? onTap;
 
   // TODO: Rotating
   /// If true marker will be counter rotated to the map rotation
@@ -45,27 +45,27 @@ class FastMarker {
   // final AlignmentGeometry rotateAlignment;
 
   FastMarker({
-    @required this.point,
+    required this.point,
     this.width = 30.0,
     this.height = 30.0,
-    @required this.onDraw,
+    required this.onDraw,
     this.onTap,
     // this.rotate,
     // this.rotateOrigin,
     // this.rotateAlignment,
-    AnchorPos anchorPos,
+    AnchorPos? anchorPos,
   }) : anchor = Anchor.forPos(anchorPos, width, height);
 }
 
 class MarkerLayerWidget extends StatelessWidget {
   final FastMarkersLayerOptions options;
 
-  MarkerLayerWidget({Key key, @required this.options}) : super(key: key);
+  MarkerLayerWidget({Key? key, required this.options}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final mapState = MapState.of(context);
-    return FastMarkersLayer(options, mapState, mapState.onMoved);
+    final mapState = MapState.maybeOf(context);
+    return FastMarkersLayer(options, mapState!, mapState.onMoved);
   }
 }
 
@@ -74,15 +74,14 @@ class FastMarkersLayer extends StatefulWidget {
   final MapState map;
   final Stream<Null> stream;
 
-  FastMarkersLayer(this.layerOptions, this.map, this.stream)
-      : super(key: layerOptions.key);
+  FastMarkersLayer(this.layerOptions, this.map, this.stream) : super(key: layerOptions.key);
 
   @override
   _FastMarkersLayerState createState() => _FastMarkersLayerState();
 }
 
 class _FastMarkersLayerState extends State<FastMarkersLayer> {
-  _FastMarkersPainter painter;
+  late _FastMarkersPainter painter;
 
   @override
   void initState() {
@@ -91,7 +90,7 @@ class _FastMarkersLayerState extends State<FastMarkersLayer> {
       widget.map,
       widget.layerOptions,
     );
-    widget.map.onTapRaw = (p) => painter.onTap(p.relative);
+    widget.map.onTapRaw = (p) => painter.onTap(p.relative!);
   }
 
   @override
@@ -108,7 +107,7 @@ class _FastMarkersLayerState extends State<FastMarkersLayer> {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      child: StreamBuilder<int>(
+      child: StreamBuilder<Null>(
         stream: widget.stream, // a Stream<int> or null
         builder: (BuildContext context, snapshot) {
           return CustomPaint(
@@ -156,13 +155,10 @@ class _FastMarkersPainter extends CustomPainter {
         _pxCache[i] = pxPoint;
       }
 
-      var topLeft = CustomPoint(
-          pxPoint.x - marker.anchor.left, pxPoint.y - marker.anchor.top);
-      var bottomRight =
-          CustomPoint(topLeft.x + marker.width, topLeft.y + marker.height);
+      var topLeft = CustomPoint(pxPoint.x - marker.anchor.left, pxPoint.y - marker.anchor.top);
+      var bottomRight = CustomPoint(topLeft.x + marker.width, topLeft.y + marker.height);
 
-      if (!map.pixelBounds
-          .containsPartialBounds(Bounds(topLeft, bottomRight))) {
+      if (!map.pixelBounds.containsPartialBounds(Bounds(topLeft, bottomRight))) {
         continue;
       }
 
@@ -182,10 +178,18 @@ class _FastMarkersPainter extends CustomPainter {
   bool onTap(Offset pos) {
     final marker = markersBoundsCache.reversed.firstWhere(
       (e) => e.key.contains(CustomPoint(pos.dx, pos.dy)),
-      orElse: () => null,
+      orElse: () {
+        return MapEntry<Bounds, FastMarker>(
+          Bounds(CustomPoint(0, 0), CustomPoint(0, 0)),
+          FastMarker(
+            point: LatLng(0, 0),
+            onDraw: (canvas, offset) {},
+          ),
+        );
+      },
     );
     if (marker != null) {
-      marker.value?.onTap();
+      marker.value.onTap!();
       return false;
     } else {
       return true;
