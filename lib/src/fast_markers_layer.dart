@@ -4,8 +4,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_map/plugin_api.dart';
 import 'package:latlong2/latlong.dart';
+import 'dart:ui';
 
 import 'fast_markers_layer_option.dart';
+import 'package:collection/collection.dart';
 
 extension on CustomPoint {
   Offset toOffset() => Offset(this.x as double, this.y as double);
@@ -17,7 +19,7 @@ class FastMarker {
   final double height;
   final Anchor anchor;
   final Function(Canvas canvas, Offset offset) onDraw;
-  final VoidCallback? onTap;
+  final Function(BuildContext context)? onTap;
 
   // TODO: Rotating
   /// If true marker will be counter rotated to the map rotation
@@ -87,6 +89,7 @@ class _FastMarkersLayerState extends State<FastMarkersLayer> {
   void initState() {
     super.initState();
     painter = _FastMarkersPainter(
+      context,
       widget.map,
       widget.layerOptions,
     );
@@ -97,6 +100,7 @@ class _FastMarkersLayerState extends State<FastMarkersLayer> {
   void didUpdateWidget(covariant FastMarkersLayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     painter = _FastMarkersPainter(
+      context,
       widget.map,
       widget.layerOptions,
     );
@@ -107,7 +111,7 @@ class _FastMarkersLayerState extends State<FastMarkersLayer> {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      child: StreamBuilder<Null>(
+      child: StreamBuilder<int?>(
         stream: widget.stream, // a Stream<int> or null
         builder: (BuildContext context, snapshot) {
           return CustomPaint(
@@ -121,12 +125,13 @@ class _FastMarkersLayerState extends State<FastMarkersLayer> {
 }
 
 class _FastMarkersPainter extends CustomPainter {
+  final BuildContext context;
   final MapState map;
   final FastMarkersLayerOptions options;
   final List<MapEntry<Bounds, FastMarker>> markersBoundsCache = [];
   var _lastZoom = -1.0;
 
-  _FastMarkersPainter(this.map, this.options) {
+  _FastMarkersPainter(this.context, this.map, this.options) {
     _pxCache = generatePxCache();
   }
 
@@ -176,20 +181,11 @@ class _FastMarkersPainter extends CustomPainter {
   }
 
   bool onTap(Offset pos) {
-    final marker = markersBoundsCache.reversed.firstWhere(
+    final marker = markersBoundsCache.reversed.firstWhereOrNull(
       (e) => e.key.contains(CustomPoint(pos.dx, pos.dy)),
-      orElse: () {
-        return MapEntry<Bounds, FastMarker>(
-          Bounds(CustomPoint(0, 0), CustomPoint(0, 0)),
-          FastMarker(
-            point: LatLng(0, 0),
-            onDraw: (canvas, offset) {},
-          ),
-        );
-      },
     );
     if (marker != null) {
-      marker.value.onTap!();
+      marker.value.onTap!(context);
       return false;
     } else {
       return true;
