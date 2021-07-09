@@ -20,6 +20,9 @@ class FastMarker {
   final Anchor anchor;
   final Function(Canvas canvas, Offset offset) onDraw;
   final Function(BuildContext context)? onTap;
+  bool isHide;
+  dynamic id;
+  dynamic markerType;
 
   // TODO: Rotating
   /// If true marker will be counter rotated to the map rotation
@@ -56,6 +59,12 @@ class FastMarker {
     // this.rotateOrigin,
     // this.rotateAlignment,
     AnchorPos? anchorPos,
+    // property check marker visibility
+    this.isHide = false,
+    // marker id
+    this.id,
+    // marker type
+    this.markerType
   }) : anchor = Anchor.forPos(anchorPos, width, height);
 }
 
@@ -109,8 +118,6 @@ class _FastMarkersLayerState extends State<FastMarkersLayer> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      height: double.infinity,
       child: StreamBuilder<int?>(
         stream: widget.stream, // a Stream<int> or null
         builder: (BuildContext context, snapshot) {
@@ -169,13 +176,16 @@ class _FastMarkersPainter extends CustomPainter {
 
       final pos = (topLeft - map.getPixelOrigin());
       // TODO: Rotating
-      marker.onDraw(canvas, pos.toOffset());
-      markersBoundsCache.add(
-        MapEntry(
-          Bounds(pos, pos + CustomPoint(marker.width, marker.height)),
-          marker,
-        ),
-      );
+      if (marker.isHide) {
+      } else {
+        marker.onDraw(canvas, pos.toOffset());
+        markersBoundsCache.add(
+          MapEntry(
+            Bounds(pos, pos + CustomPoint(marker.width, marker.height)),
+            marker,
+          ),
+        );
+      }
     }
     _lastZoom = map.zoom;
   }
